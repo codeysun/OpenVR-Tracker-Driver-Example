@@ -1,0 +1,8 @@
+{
+	"alwaysActivate": true,
+	"name" : "tracker_example",
+	"directory" : "",
+	"resourceOnly" : false,
+	"prefersUpperDeviceIndices" :  true,
+	"hmd_presence" : []
+}
