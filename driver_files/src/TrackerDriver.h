@@ -1,6 +1,8 @@
 #pragma once
 #include <openvr_driver.h>
 #include <windows.h>
+#include <thread>
+#include <chrono>
 
 using namespace vr;
 
@@ -66,8 +68,14 @@ public:
 
 private:
 
-	TrackedDeviceIndex_t driverId;
-	//Head tracking vars
+	TrackedDeviceIndex_t driverId_;
+
+	std::chrono::time_point<std::chrono::high_resolution_clock> lastPoseTime;
+	std::thread getPoseThread_;
+	void GetPoseThreaded();
+
+	
+	// Head tracking vars
 	double yaw_ = 0, pitch_ = 0, roll_ = 0;
 	double pX_ = 0, pY_ = 0, pZ_ = 0;
 

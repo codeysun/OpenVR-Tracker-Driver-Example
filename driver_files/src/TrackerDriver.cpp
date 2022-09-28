@@ -17,9 +17,9 @@
 
 EVRInitError TrackerDriver::Activate(TrackedDeviceIndex_t unObjectId)
 {
-	driverId = unObjectId; //unique ID for your driver
+	driverId_ = unObjectId; //unique ID for your driver
 
-	PropertyContainerHandle_t props = VRProperties()->TrackedDeviceToPropertyContainer(driverId); //this gets a container object where you store all the information about your driver
+	PropertyContainerHandle_t props = VRProperties()->TrackedDeviceToPropertyContainer(driverId_); //this gets a container object where you store all the information about your driver
 
 	// Opt out of hand selection
 	VRProperties()->SetInt32Property(props, Prop_ControllerRoleHint_Int32, ETrackedControllerRole::TrackedControllerRole_OptOut);
@@ -33,6 +33,10 @@ EVRInitError TrackerDriver::Activate(TrackedDeviceIndex_t unObjectId)
 	VRProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceNotReady_String, "{example}/icons/tracker_not_ready.png");
 	VRProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceStandby_String, "{example}/icons/tracker_not_ready.png");
 	VRProperties()->SetStringProperty(props, vr::Prop_NamedIconPathDeviceAlertLow_String, "{example}/icons/tracker_not_ready.png");
+
+	// Set up threads
+	getPoseThread_ = std::thread(&TrackerDriver::GetPoseThreaded, this);
+	lastPoseTime = std::chrono::high_resolution_clock::now();
 
 	return VRInitError_None;
 }
@@ -49,6 +53,11 @@ DriverPose_t TrackerDriver::GetPose()
 	pose.poseIsValid = true;
 	pose.result = TrackingResult_Running_OK;
 	pose.deviceIsConnected = true;
+
+	std::chrono::time_point<std::chrono::high_resolution_clock> timeNow = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<float> duration = (timeNow- lastPoseTime);
+	float deltaT = duration.count();
+	lastPoseTime = timeNow;
 
 	HmdQuaternion_t quat;
 	quat.w = 1;
@@ -67,45 +76,45 @@ DriverPose_t TrackerDriver::GetPose()
 	// "yaw" is pitch
 	// "roll" is yaw
 	if ((GetAsyncKeyState(KEY_E) & 0x8000) != 0) {
-		yaw_ += 0.01;
+		yaw_ += 1.0f * deltaT;
 	}
 	if ((GetAsyncKeyState(KEY_T) & 0x8000) != 0) {
-		yaw_ -= 0.01;
+		yaw_ -= 1.0f * deltaT;
 	}
 
 	if ((GetAsyncKeyState(KEY_D) & 0x8000) != 0) {
-		pitch_ += 0.01;
+		pitch_ += 1.0f * deltaT;
 	}
 	if ((GetAsyncKeyState(KEY_G) & 0x8000) != 0) {
-		pitch_ -= 0.01;
+		pitch_ -= 1.0f * deltaT;
 	}
 
 	if ((GetAsyncKeyState(KEY_R) & 0x8000) != 0) {
-		roll_ += 0.01;
+		roll_ += 1.0f * deltaT;
 	}
 	if ((GetAsyncKeyState(KEY_F) & 0x8000) != 0) {
-		roll_ -= 0.01;
+		roll_ -= 1.0f * deltaT;
 	}
 
 	if ((GetAsyncKeyState(KEY_I) & 0x8000) != 0) {
-		pZ_ -= 0.01;
+		pZ_ -= 1.0f * deltaT;
 	}
 	if ((GetAsyncKeyState(KEY_K) & 0x8000) != 0) {
-		pZ_ += 0.01;
+		pZ_ += 1.0f * deltaT;
 	}
 
 	if ((GetAsyncKeyState(KEY_J) & 0x8000) != 0) {
-		pX_ -= 0.01;
+		pX_ -= 1.0f * deltaT;
 	}
 	if ((GetAsyncKeyState(KEY_L) & 0x8000) != 0) {
-		pX_ += 0.01;
+		pX_ += 1.0f * deltaT;
 	}
 
 	if ((GetAsyncKeyState(KEY_O) & 0x8000) != 0) {
-		pY_ += 0.01;
+		pY_ += 1.0f * deltaT;
 	}
 	if ((GetAsyncKeyState(KEY_U) & 0x8000) != 0) {
-		pY_ -= 0.01;
+		pY_ -= 1.0f * deltaT;
 	}
 
 	// Position of the driver tracking reference in driver world space
@@ -131,19 +140,35 @@ DriverPose_t TrackerDriver::GetPose()
 	return pose;
 }
 
+void TrackerDriver::GetPoseThreaded()
+{
+	VRDriverLog()->Log("Starting thread for tracker_example pose");
+	while (driverId_ != k_unTrackedDeviceIndexInvalid)
+	{
+		VRServerDriverHost()->TrackedDevicePoseUpdated(driverId_, GetPose(), sizeof(DriverPose_t));
+	}
+
+	VRDriverLog()->Log("Stopping thread for tracker_example pose");
+}
+
 void TrackerDriver::RunFrame()
 {
-	// In a real driver, this should happen from some pose tracking thread.
-	// The RunFrame interval is unspecified and can be very irregular if some other
-	// driver blocks it for some periodic task.
-	if (driverId != vr::k_unTrackedDeviceIndexInvalid) {
-		vr::VRServerDriverHost()->TrackedDevicePoseUpdated(driverId, GetPose(), sizeof(DriverPose_t));
-	}
+	//// In a real driver, this should happen from some pose tracking thread.
+	//// The RunFrame interval is unspecified and can be very irregular if some other
+	//// driver blocks it for some periodic task.
+	//if (driverId_ != vr::k_unTrackedDeviceIndexInvalid) {
+	//	VRServerDriverHost()->TrackedDevicePoseUpdated(driverId_, GetPose(), sizeof(DriverPose_t));
+	//}
 }
 
 void TrackerDriver::Deactivate()
 {
-	driverId = k_unTrackedDeviceIndexInvalid;
+	driverId_ = k_unTrackedDeviceIndexInvalid;
+
+	// Wait for threads
+	getPoseThread_.join();
+
+	VRDriverLog()->Log("All threads exitted");
 }
 
 void* TrackerDriver::GetComponent(const char* pchComponentNameAndVersion)

@@ -45,6 +45,10 @@ This example provides 6DOF control of the user's head tracking via the keyboard.
 - Now, run SteamVR. The driver and tracking override should be fully functional, but you may see a laser pointer following the camera. This is because the driver is configured as a handheld controller. Open SteamVR Settings -> Controllers -> Manage Trackers.
     - Configure the Tracker Role of `/devices/tracker_example/tracker_example_1234` as anything other than `HELD IN HAND`. For example, `CAMERA` will work.
 
+## Debugging
+- Logs can be found in `C:\Program Files (x86)\Steam\logs\vrserver.txt`
+- If more in-depth debugging is needed, follow the StemVR debugging tutorial found [here](https://github.com/terminal29/Simple-OpenVR-Driver-Tutorial/blob/master/README.md#debugging)
+
 ## Resources
 - [Official OpenVR Documentation](https://github.com/ValveSoftware/openvr/wiki)
     - The OpenVR source code also contains sample code
